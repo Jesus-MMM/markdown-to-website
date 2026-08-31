@@ -22,8 +22,6 @@ jobs:
         include:
           - os: ubuntu-latest
             asset_name: md2site-linux-x64
-          - os: macos-13
-            asset_name: md2site-darwin-x64
           - os: macos-14
             asset_name: md2site-darwin-arm64
           - os: windows-latest
@@ -40,7 +38,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
 
       - name: Install dependencies
