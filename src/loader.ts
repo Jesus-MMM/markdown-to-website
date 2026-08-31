@@ -57,7 +57,7 @@ export async function walkMarkdownFiles(docsDir: string): Promise<string[]> {
  * Cada página lleva su ruta de salida (por carpetas), frontmatter
  * y contenido HTML renderizado.
  */
-export async function loadPages(docsDir: string): Promise<Page[]> {
+export async function loadPages(docsDir: string, base = ""): Promise<Page[]> {
 	const files: FoundFile[] = [];
 	const root = path.resolve(docsDir);
 
@@ -72,7 +72,7 @@ export async function loadPages(docsDir: string): Promise<Page[]> {
 		const abs = path.join(root, file.relDir, `${file.fileName}.md`);
 		const source = path.join(file.relDir, `${file.fileName}.md`);
 		const raw = await readFile(abs, "utf8");
-		const parsed = await parseMarkdown(raw);
+		const parsed = await parseMarkdown(raw, base);
 
 		const isIndex = file.fileName.toLowerCase() === "index";
 

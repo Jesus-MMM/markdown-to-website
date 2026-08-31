@@ -33,12 +33,12 @@ function buildLiveReloadHtml(html: string): string {
  * cuando cambian los archivos fuente, provocando una recarga del navegador.
  */
 export async function startDev(config: SiteConfig): Promise<http.Server> {
-	const defaultTemplatesDir = defaultTemplatesDirHint();
+	const defaultTemplatesDir = await defaultTemplatesDirHint();
 	const clients = new Set<http.ServerResponse>();
 
 	async function renderTree() {
-		const pages = await loadPages(config.docsDir);
-		const nav = buildNav(pages);
+		const pages = await loadPages(config.docsDir, config.base);
+		const nav = buildNav(pages, config.base);
 		const assets = await discoverAssets(config.templatesDir);
 		await registerPartials(config.templatesDir, defaultTemplatesDir, true);
 		return { pages, nav, assets };

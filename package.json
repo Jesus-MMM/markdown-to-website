@@ -14,6 +14,8 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:embedded": "node scripts/generate-embedded.mjs",
+    "build:binary": "node scripts/build-sea.mjs",
     "dev": "tsx src/cli.ts dev",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
@@ -34,12 +36,13 @@
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
+    "tsx": "^4.23.13",
     "unified": "^11.0.5",
     "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^26.4.0",
-    "tsx": "^4.23.13",
+    "esbuild": "^0.28.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   }

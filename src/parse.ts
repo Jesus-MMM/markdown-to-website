@@ -19,8 +19,11 @@ const firstHeading = /<h1[^>]*>([\s\S]*?)<\/h1>/i;
  * Convierte un string markdown a un documento parseado: extrae el
  * frontmatter (YAML), renderiza el contenido a HTML y deduce el título
  * (desde `title` del frontmatter o el primer H1 del markdown).
+ *
+ * Si se indica `base`, los enlaces e imágenes con ruta absoluta interna
+ * (empezando por "/") se reescriben prefijando el base path del sitio.
  */
-export async function parseMarkdown(raw: string): Promise<ParsedDocument> {
+export async function parseMarkdown(raw: string, base = ""): Promise<ParsedDocument> {
 	const { content, data } = matter(raw);
 	const meta = (data ?? {}) as PageMeta;
 
@@ -28,6 +31,7 @@ export async function parseMarkdown(raw: string): Promise<ParsedDocument> {
 		.use(remarkParse)
 		.use(remarkGfm)
 		.use(remarkRehype)
+		.use(() => rehypeBasePath(base))
 		.use(rehypeStringify)
 		.process(content);
 
@@ -45,4 +49,39 @@ export async function parseMarkdown(raw: string): Promise<ParsedDocument> {
 	}
 
 	return { content, meta, title, html };
+}
+
+interface HastNode {
+	type?: string;
+	tagName?: string;
+	properties?: Record<string, unknown>;
+	children?: HastNode[];
+}
+
+/**
+ * Plugin de rehype que prefija el base path del sitio a los atributos `href`
+ * y `src` con ruta absoluta interna (empiezan por "/"). No toca URLs
+ * externas (http/https), anclas (#) ni rutas relativas.
+ */
+function rehypeBasePath(base: string): (tree: HastNode) => void {
+	return (tree) => {
+		if (!base) return;
+
+		const visit = (node: HastNode): void => {
+			if (node.type === "element" && node.properties) {
+				for (const key of ["href", "src"] as const) {
+					const value = node.properties[key];
+					if (typeof value !== "string") continue;
+					if (!value.startsWith("/")) continue;
+					if (value.startsWith("//")) continue; // protocol-relative: no tocar
+					node.properties[key] = `${base}${value}`;
+				}
+			}
+			if (node.children) {
+				for (const child of node.children) visit(child);
+			}
+		};
+
+		visit(tree);
+	};
 }

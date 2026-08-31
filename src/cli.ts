@@ -1,7 +1,7 @@
 import process from "node:process";
 import { loadConfig } from "./config.js";
 import { build } from "./build.js";
-import { scaffold } from "./scaffold.js";
+import { scaffold, CONFIG_FILENAME } from "./scaffold.js";
 import { startDev } from "./dev.js";
 import { startStaticServer } from "./serve.js";
 
@@ -14,7 +14,8 @@ Uso:
   md2site <comando> [opciones]
 
 Comandos:
-  init                Genera una estructura base (docs + templates + config)
+  init [-o DIR]     Genera una estructura base (docs + templates + config)
+                    -o, --output DIR  genera la estructura dentro de DIR (la carpeta se crea si no existe)
   build               Compila los markdowns a HTML estático en dist/
   dev                 Inicia el servidor de desarrollo con live-reload
   serve [--port N]    Sirve el build ya generado
@@ -48,9 +49,11 @@ async function main(argv: string[]): Promise<number> {
 	try {
 		switch (command) {
 			case "init": {
-				await scaffold(cwd);
+				const outputDir = parseOutput(rest);
+				await scaffold(cwd, outputDir);
+				const where = outputDir ? outputDir : "en el directorio actual";
 				process.stdout.write(
-					"Estructura inicial creada:\n  docs/  templates/  md2site.config.ts\n" +
+					`Estructura inicial creada ${where}:\n  docs/  templates/  ${CONFIG_FILENAME}\n` +
 						"Edita los Markdowns en docs/ y tus plantillas en templates/, luego ejecuta:\n" +
 						"  md2site dev   # previsualizar con live-reload\n  md2site build # generar el sitio estático\n",
 				);
@@ -114,7 +117,28 @@ function parsePort(rest: string[]): number {
 	return 8080;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-	const code = await main(process.argv);
-	process.exit(code);
+function parseOutput(rest: string[]): string | undefined {
+	for (let i = 0; i < rest.length; i += 1) {
+		if (rest[i] === "-o" || rest[i] === "--output") {
+			return rest[i + 1];
+		}
+	}
+	return undefined;
+}
+
+// En el binario SEA (bundle CJS, mainFormat commonjs) el guard usa la bandera
+// de build; en el paquete npm (dist/cli.js ESM) se compara import.meta.url.
+declare const __MD2SITE_BINARY__: boolean | undefined;
+const isBinary =
+	typeof __MD2SITE_BINARY__ !== "undefined" && __MD2SITE_BINARY__ === true;
+
+if (isBinary || import.meta.url === `file://${process.argv[1]}`) {
+	// Sin top-level await (el bundle CJS del binario no lo soporta).
+	void main(process.argv).then(
+		(code) => process.exit(code),
+		(err) => {
+			process.stderr.write(`Error: ${(err as Error).message}\n`);
+			process.exit(1);
+		},
+	);
 }

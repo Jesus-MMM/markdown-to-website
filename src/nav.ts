@@ -1,9 +1,10 @@
 import type { NavItem, Page } from "./types.js";
 
-function pageToNav(page: Page, titleOverride?: string): NavItem {
+function pageToNav(page: Page, base: string, titleOverride?: string): NavItem {
+	const route = page.route ? `/${page.route}/` : "/";
 	return {
 		title: titleOverride ?? page.title,
-		url: page.route ? `/${page.route}/` : "/",
+		url: `${base}${route}`,
 		order: page.meta.order ?? Number.MAX_SAFE_INTEGER,
 		isIndex: page.source.toLowerCase().endsWith("index.md"),
 		children: [],
@@ -25,7 +26,7 @@ function sortChildren(children: NavItem[]): void {
  *   convierten en sus hijos.
  * - `index.md` en la raíz se convierte en el home.
  */
-export function buildNav(pages: Page[]): NavItem[] {
+export function buildNav(pages: Page[], base = ""): NavItem[] {
 	const root = new Map<string, NavItem>();
 	const sections = new Map<string, NavItem>();
 
@@ -71,7 +72,7 @@ export function buildNav(pages: Page[]): NavItem[] {
 
 		if (isRootHome) {
 			// El home se coloca primero en la raíz.
-			const homeNode = pageToNav(page);
+			const homeNode = pageToNav(page, base);
 			homeNode.order = Number.MIN_SAFE_INTEGER;
 			root.set("__home__", homeNode);
 			continue;
@@ -81,7 +82,7 @@ export function buildNav(pages: Page[]): NavItem[] {
 		const isSection = page.source.toLowerCase().endsWith("index.md");
 		if (isSection) {
 			const section = getOrCreateSection(slug);
-			const navItem = pageToNav(page);
+			const navItem = pageToNav(page, base);
 			// Añade los metadatos SIN reemplazar `children` (que puede ya
 			// contener páginas procesadas antes que el index.md).
 			section.title = navItem.title;
@@ -96,11 +97,11 @@ export function buildNav(pages: Page[]): NavItem[] {
 		const parentSlug = slug.slice(0, -1);
 		if (parentSlug.length === 0) {
 			// Página en la raíz (sin carpeta, sin index): va directo a la raíz.
-			const node = pageToNav(page);
+			const node = pageToNav(page, base);
 			root.set(`page:${page.route}`, node);
 		} else {
 			const parent = getOrCreateSection(parentSlug);
-			parent.children.push(pageToNav(page));
+			parent.children.push(pageToNav(page, base));
 		}
 	}
 
@@ -117,18 +118,21 @@ function escapeHtml(s: string): string {
 		.replace(/"/g, "&quot;");
 }
 
-function isActive(item: NavItem, currentRoute: string): boolean {
-	const target = item.url && item.url !== "/" ? item.url.replace(/\/+$/, "") : "/";
-	const cur = currentRoute && currentRoute !== "" ? `/${currentRoute.replace(/^\/+|\/+$/g, "")}` : "/";
-	if (target === "/" || cur === "/") {
+function isActive(item: NavItem, currentRoute: string, base = ""): boolean {
+	const curBase = currentRoute && currentRoute !== ""
+		? `${base}/${currentRoute.replace(/^\/+|\/+$/g, "")}`
+		: (base || "/");
+	const target = item.url ? item.url.replace(/\/+$/, "") : "";
+	const cur = curBase.replace(/\/+$/, "");
+	if (target === "/" || cur === "/" || target === base || cur === base) {
 		return target === cur;
 	}
 	return cur === target || cur.startsWith(`${target}/`);
 }
 
-function renderItem(item: NavItem, currentRoute: string): string {
+function renderItem(item: NavItem, currentRoute: string, base = ""): string {
 	const cls: string[] = [];
-	if (isActive(item, currentRoute)) cls.push("active");
+	if (isActive(item, currentRoute, base)) cls.push("active");
 	if (item.isIndex) cls.push("section");
 	const extra = cls.length ? ` class="${cls.join(" ")}"` : "";
 
@@ -140,18 +144,18 @@ function renderItem(item: NavItem, currentRoute: string): string {
 		? `<a href="${escapeHtml(item.url)}"${extra}>${escapeHtml(item.title)}</a>`
 		: `<span${extra}>${escapeHtml(item.title)}</span>`;
 
-	const inner = renderList(item.children, currentRoute);
+	const inner = renderList(item.children, currentRoute, base);
 	return `<li class="has-children">${link}<ul>${inner}</ul></li>`;
 }
 
-function renderList(items: NavItem[], currentRoute: string): string {
-	return items.map((item) => renderItem(item, currentRoute)).join("");
+function renderList(items: NavItem[], currentRoute: string, base = ""): string {
+	return items.map((item) => renderItem(item, currentRoute, base)).join("");
 }
 
 /**
  * Genera el HTML de la navegación. La página actual se resalta con
  * la clase CSS "active".
  */
-export function renderNavHtml(items: NavItem[], currentRoute: string): string {
-	return `<ul class="nav-menu">${renderList(items, currentRoute)}</ul>`;
+export function renderNavHtml(items: NavItem[], currentRoute: string, base = ""): string {
+	return `<ul class="nav-menu">${renderList(items, currentRoute, base)}</ul>`;
 }

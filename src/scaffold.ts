@@ -1,10 +1,22 @@
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { writeEmbeddedFiles, scaffoldDocs, defaultTemplates } from "./embedded.js";
+
+// Bandera definida en tiempo de build por esbuild al generar el binario SEA.
+declare const __MD2SITE_BINARY__: boolean | undefined;
+const isBinary =
+	typeof __MD2SITE_BINARY__ !== "undefined" && __MD2SITE_BINARY__ === true;
+
+// En el binario autocontenido no hay tsx, así que se genera la config en
+// ESM puro (.mjs); en el paquete npm se puede usar TypeScript (.ts).
+const CONFIG_FILENAME = isBinary ? "md2site.config.mjs" : "md2site.config.ts";
+
+export { CONFIG_FILENAME };
 
 const CONFIG_TEMPLATE = `export default {
-  title: "Mi Documentación",
+  title: "M2W Documentación",
   lang: "es",
+  base: "",
   outDir: "dist",
   docsDir: "docs",
   templatesDir: "templates",
@@ -12,48 +24,25 @@ const CONFIG_TEMPLATE = `export default {
 };
 `;
 
-// Raíz del paquete (src/..).
-// scaffold.ts compilado vive en dist/, así que se resuelve la raíz del repo.
-const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-
-// Ruta a los archivos reales del proyecto que se copian en `init`.
-const SCAFFOLD_DOCS_DIR = path.join(ROOT_DIR, "scaffold", "docs");
-const DEFAULT_TEMPLATES_DIR = path.join(ROOT_DIR, "templates", "default");
-
 /**
- * Copia recursivamente el contenido de un directorio a otro.
- */
-async function copyDir(src: string, dest: string): Promise<void> {
-	await fs.mkdir(dest, { recursive: true });
-	const entries = await fs.readdir(src, { withFileTypes: true });
-	for (const entry of entries) {
-		const from = path.join(src, entry.name);
-		const to = path.join(dest, entry.name);
-		if (entry.isDirectory()) {
-			await copyDir(from, to);
-		} else if (entry.isFile()) {
-			await fs.copyFile(from, to);
-		}
-	}
-}
-
-/**
- * Genera la estructura base de un proyecto dentro del directorio actual:
+ * Genera la estructura base de un proyecto dentro de `rootDir`:
  * docs/ (documentación de ejemplo), templates/ (plantilla moderna) y el
  * archivo de configuración.
  *
- * En vez de generar el contenido desde código, se copian los archivos reales
- * del repositorio: `scaffold/docs/` → docs/ y `templates/default/` → templates/.
+ * El contenido de ejemplo y las plantillas por defecto vienen del árbol
+ * embebido (src/embedded.ts), de modo que el binario autocontenido puede
+ * hacer `init` sin depender del repositorio.
  */
-export async function scaffold(rootDir: string): Promise<void> {
-	const configFile = path.join(rootDir, "md2site.config.ts");
+export async function scaffold(rootDir: string, outputDir?: string): Promise<void> {
+	const targetDir = outputDir ? path.join(rootDir, outputDir) : rootDir;
+	const configFile = path.join(targetDir, CONFIG_FILENAME);
 	await safeWrite(configFile, CONFIG_TEMPLATE);
 
-	const docsDir = path.join(rootDir, "docs");
-	const templatesDir = path.join(rootDir, "templates");
+	const docsDir = path.join(targetDir, "docs");
+	const templatesDir = path.join(targetDir, "templates");
 
-	await copyDir(SCAFFOLD_DOCS_DIR, docsDir);
-	await copyDir(DEFAULT_TEMPLATES_DIR, templatesDir);
+	await writeEmbeddedFiles(scaffoldDocs, docsDir);
+	await writeEmbeddedFiles(defaultTemplates, templatesDir);
 }
 
 /**

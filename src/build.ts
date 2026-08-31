@@ -1,20 +1,31 @@
 import path from "node:path";
-import { promises as fs } from "node:fs";
+import os from "node:os";
+import { promises as fs, existsSync } from "node:fs";
 import type { SiteConfig } from "./types.js";
 import { loadPages } from "./loader.js";
 import { buildNav } from "./nav.js";
 import { discoverAssets } from "./assets.js";
 import { registerPartials, buildContext, renderPage } from "./template.js";
-
-const DEFAULT_TEMPLATES_DIR = path.resolve(import.meta.dirname, "../templates/default");
+import { writeEmbeddedFiles, defaultTemplates } from "./embedded.js";
 
 export interface BuildResult {
 	pages: number;
 	outDir: string;
 }
 
-export function defaultTemplatesDirHint(): string {
-	return DEFAULT_TEMPLATES_DIR;
+let defaultTemplatesPath: string | null = null;
+
+/**
+ * Devuelve la ruta a las plantillas por defecto, materializándolas desde el
+ * árbol embebido la primera vez. Indepnde de disco: funciona igual en el
+ * paquete npm y en el binario autocontenido.
+ */
+export async function defaultTemplatesDirHint(): Promise<string> {
+	if (!defaultTemplatesPath) {
+		defaultTemplatesPath = path.join(os.tmpdir(), "md2site-default-templates");
+		await writeEmbeddedFiles(defaultTemplates, defaultTemplatesPath);
+	}
+	return defaultTemplatesPath;
 }
 
 /**
@@ -33,17 +44,28 @@ async function copyAssets(templatesDir: string, outDir: string): Promise<void> {
 }
 
 /**
+ * Si el proyecto no aporta plantillas propias, materializa las por defecto en
+ * config.templatesDir para que el build funcione sin un repo ni Node.
+ */
+async function ensureProjectTemplates(config: SiteConfig): Promise<void> {
+	if (existsSync(config.templatesDir)) return;
+	await writeEmbeddedFiles(defaultTemplates, config.templatesDir);
+}
+
+/**
  * Ejecuta el build completo: parsea los markdowns, genera la navegación,
  * renderiza las páginas con las plantillas y escribe la salida estática
  * en rutas por carpetas dentro de outDir.
  */
 export async function build(config: SiteConfig): Promise<BuildResult> {
-	const defaultTemplatesDir = defaultTemplatesDirHint();
+	const defaultTemplatesDir = await defaultTemplatesDirHint();
+	await ensureProjectTemplates(config);
+
 	await fs.rm(config.outDir, { recursive: true, force: true });
 	await fs.mkdir(config.outDir, { recursive: true });
 
-	const pages = await loadPages(config.docsDir);
-	const nav = buildNav(pages);
+	const pages = await loadPages(config.docsDir, config.base);
+	const nav = buildNav(pages, config.base);
 	const assets = await discoverAssets(config.templatesDir);
 	await registerPartials(config.templatesDir, defaultTemplatesDir);
 

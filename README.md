@@ -42,12 +42,29 @@ Si no vinculas el paquete globalmente, ejecuta los comandos con:
 node dist/cli.js <comando>
 ```
 
+### Binario autónomo (SEA)
+
+También puedes generar un **ejecutable autocontenido** (no requiere Node ni el repositorio
+en el entorno de destino):
+
+```bash
+pnpm build:binary    # genera .sea/md2site
+```
+
+El binario incluye las plantillas por defecto y la documentación de ejemplo embebidas,
+por lo que `init`, `build`, `dev` y `serve` funcionan de inmediato. Nota: su archivo de
+configuración es `md2site.config.mjs` y solo admite **configs declarativos** (ver
+[Configuración](#configuración-md2siteconfigts)).
+
 ## Inicio rápido
 
 ```bash
 # 1. Genera la estructura base (docs + templates + config)
 #    docs/ se crea con la documentación de ejemplo de md2site
 md2site init
+
+#    también puedes crear el proyecto en una carpeta nueva
+md2site init -o mi-proyecto
 
 # 2. Edita los archivos Markdown en docs/ (o sustituye por tu contenido)
 
@@ -65,7 +82,7 @@ md2site serve
 
 | Comando | Descripción |
 |---------|-------------|
-| `md2site init` | Copia la estructura base: `docs/` (documentación de ejemplo), `templates/` (plantilla moderna) y crea `md2site.config.ts`. |
+| `md2site init [-o DIR]` | Copia la estructura base: `docs/` (documentación de ejemplo), `templates/` (plantilla moderna) y crea el archivo de configuración. `-o`/`--output DIR` crea la estructura dentro de `DIR` (la carpeta se crea si no existe). |
 | `md2site build` | Compila los Markdown a HTML estático en `dist/`. |
 | `md2site dev` | Servidor de desarrollo con live-reload (puerto por defecto 5173). |
 | `md2site serve [--port N]` | Sirve el build generado (puerto por defecto 8080). |
@@ -94,7 +111,7 @@ mi-proyecto/
     └── js/app.js            # idem
 ```
 
-El comando `md2site init` copia una documentación de ejemplo completa del
+El comando `md2site init` genera una documentación de ejemplo completa del
 propio `md2site` dentro de `docs/` (home, guía de instalación, guías/tutoriales,
 referencia de CLI/config/plantillas/Markdown y FAQ), con su `frontmatter`,
 jerarquía por carpetas y `index.md` por sección. Sírvela de referencia o
@@ -106,6 +123,7 @@ reemplázala con tu contenido.
 export default {
   title: "Mi Documentación",
   lang: "es",
+  base: "",
   outDir: "dist",
   docsDir: "docs",
   templatesDir: "templates",
@@ -117,11 +135,20 @@ export default {
 |-------|------|---------|-------------|
 | `title` | string | `"Mi Documentación"` | Título del sitio. |
 | `lang` | string | `"es"` | Atributo `lang` del HTML. |
+| `base` | string | `""` | Prefijo de ruta (base path) del sitio. Necesario al servir bajo una subcarpeta (p.ej. GitHub Pages de proyecto: `/mi-repo`). Se aplica a la navegación, a los enlaces del contenido y a las plantillas. |
 | `outDir` | string | `"dist"` | Carpeta de salida del build. |
 | `docsDir` | string | `"docs"` | Carpeta de los archivos Markdown. |
 | `templatesDir` | string | `"templates"` | Carpeta de plantillas y assets. |
 | `dev.port` | number | `5173` | Puerto del servidor de desarrollo. |
 | `dev.open` | boolean | `false` | Abre el navegador automáticamente al iniciar `dev`. |
+
+El `base` también puede fijarse con la variable de entorno **`MD2SITE_BASE`**, que tiene prioridad
+sobre el valor del archivo de configuración (muy útil en CI/CD, p.ej. GitHub Pages de proyecto).
+
+Formato del archivo de configuración:
+
+- **Paquete npm**: `md2site.config.ts` (TypeScript, con lógica y `import` permitidos).
+- **Binario autónomo**: `md2site.config.mjs` (o `.js`/`.json`), **declarativo**: solo objetos literales `export default { ... }`, sin `import` ni lógica adicional. Un config con imports fallará en el binario con una advertencia clara.
 
 ## Estructura de los Markdown
 
@@ -216,15 +243,16 @@ layout: especial
 
 Si no aportas `templates/`, se usan las incluidas en `templates/default/` (tema moderno con modo claro/oscuro, búsqueda en la barra lateral, resaltado de código con botón de copiar, y layout responsive).
 
-`md2site init` **copia** estas plantillas y los archivos de documentación de ejemplo desde los archivos reales del repositorio, en lugar de generarlos desde código:
+`md2site init` **genera** estas plantillas y los archivos de documentación de ejemplo desde el contenido embebido, en lugar de depender de archivos externos (por eso el binario autónomo puede hacer `init` sin el repositorio):
 
-- `scaffold/docs/` → `docs/` (documentación de ejemplo con la estructura correcta)
-- `templates/default/` → `templates/` (la plantilla moderna completa: `layout.html`, `partials/`, `css/`, `js/`)
+- `docs/` → documentación de ejemplo con la estructura correcta
+- `templates/` → la plantilla moderna completa: `layout.html`, `partials/`, `css/`, `js/`
 
 ## Comandos del proyecto
 
 ```bash
 pnpm build         # compila TypeScript a dist/
+pnpm build:binary  # genera el binario autónomo (SEA) en .sea/
 pnpm typecheck     # verifica tipos sin emitir
 pnpm test          # ejecuta los tests Vitest
 pnpm dev           # atajo: ejecuta el CLI dev con tsx
@@ -247,6 +275,7 @@ src/
 ├── dev.ts              # servidor de desarrollo con live-reload (SSE)
 ├── serve.ts            # servidor estático del build
 ├── scaffold.ts         # estructura generada por `init`
+├── embedded.ts         # contenido embebido (plantillas + docs de ejemplo) para el binario
 └── types.ts            # tipos compartidos
 tests/                  # tests Vitest (loader, parse, nav, render)
 templates/default/      # plantillas por defecto

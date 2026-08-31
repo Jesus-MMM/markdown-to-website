@@ -11,8 +11,10 @@ export interface TemplateContext {
 	title: string;
 	content: string;
 	lang: string;
+	base: string;
 	site: {
 		title: string;
+		base: string;
 		[key: string]: unknown;
 	};
 	page: Record<string, unknown>;
@@ -40,10 +42,11 @@ export function buildContext(
 		title: page.title || site.title,
 		content: page.html,
 		lang: site.lang,
-		site: { title: site.title },
+		base: site.base,
+		site: { title: site.title, base: site.base },
 		page: { ...page.meta },
 		nav,
-		navHtml: renderNavHtml(nav, page.route),
+		navHtml: renderNavHtml(nav, page.route, site.base),
 		currentRoute: page.route,
 		assets: bundleForPage(assets, templatesDir, depth),
 	};

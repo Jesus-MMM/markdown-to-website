@@ -45,6 +45,8 @@ jobs:
         run: node dist/cli.js init
 
       - name: Generate static site
+        env:
+          MD2SITE_BASE: /${{ github.event.repository.name }}
         run: node dist/cli.js build
 
       - name: Upload Pages artifact

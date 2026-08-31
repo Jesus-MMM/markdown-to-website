@@ -1,6 +1,7 @@
 export interface SiteConfig {
 	title: string;
 	lang: string;
+	base: string;
 	outDir: string;
 	docsDir: string;
 	templatesDir: string;
