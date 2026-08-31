@@ -28,7 +28,7 @@ await build({
 	bundle: true,
 	format: "cjs",
 	platform: "node",
-	target: "node26",
+	target: "node24",
 	outfile: path.join(seaDir, "pre.cjs"),
 	external: ["tsx", "esbuild", "node:sea"],
 	define: { __MD2SITE_BINARY__: "true" },
