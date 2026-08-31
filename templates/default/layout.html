@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="{{lang}}" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{{title}}{{#if site.title}} · {{site.title}}{{/if}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('theme');
+        var theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
+  {{#each assets.css}}<link rel="stylesheet" href="{{this}}">{{/each}}
+</head>
+<body>
+  {{> header}}
+  <div class="layout">
+    <aside class="sidebar">{{> nav}}</aside>
+    <main class="content">
+      <article>{{{content}}}</article>
+    </main>
+  </div>
+  {{> footer}}
+  {{#each assets.js}}<script src="{{this}}" defer></script>{{/each}}
+</body>
+</html>

@@ -1,0 +1,46 @@
+{
+  "name": "md2site",
+  "version": "0.1.0",
+  "description": "Generador automático de sitios de documentación estáticos a partir de Markdown y plantillas por página",
+  "type": "module",
+  "packageManager": "pnpm@9.12.0",
+  "bin": {
+    "md2site": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "scaffold"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts dev",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "markdown",
+    "documentation",
+    "static-site",
+    "generator",
+    "cli"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "gray-matter": "^4.0.3",
+    "handlebars": "^4.7.9",
+    "rehype-stringify": "^10.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "unified": "^11.0.5",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}
