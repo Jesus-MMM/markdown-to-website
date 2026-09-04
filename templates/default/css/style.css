@@ -359,6 +359,51 @@ a:hover { color: var(--brand-hover); text-decoration: underline; }
 
 .content a code { color: var(--brand); }
 
+/* ---------------- Diagrams (Mermaid / Graphviz-DOT) ---------------- */
+.diagram {
+  margin: 0 0 1.25rem;
+}
+.diagram .diagram-source,
+.diagram pre.mermaid {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  background: var(--bg-alt);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  overflow-x: auto;
+  white-space: pre;
+  margin: 0;
+}
+.diagram pre.mermaid {
+  text-align: left;
+  line-height: 1.5;
+}
+.diagram svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  background: transparent;
+  overflow: visible;
+}
+.diagram .diagram-error {
+  margin-top: 0.5rem;
+  color: #b3261e;
+  background: color-mix(in srgb, #b3261e 10%, transparent);
+  border: 1px solid color-mix(in srgb, #b3261e 45%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+[data-theme="dark"] .diagram .diagram-error {
+  color: #ffb4ab;
+}
+.diagram.has-error .diagram-source,
+.diagram.has-error pre.mermaid {
+  border-color: #b3261e;
+}
+
 /* ---------------- Footer ---------------- */
 .site-footer {
   border-top: 1px solid var(--border-soft);

@@ -31,6 +31,7 @@ export async function parseMarkdown(raw: string, base = ""): Promise<ParsedDocum
 		.use(remarkParse)
 		.use(remarkGfm)
 		.use(remarkRehype)
+		.use(() => rehypeDiagrams())
 		.use(() => rehypeBasePath(base))
 		.use(rehypeStringify)
 		.process(content);
@@ -56,6 +57,153 @@ interface HastNode {
 	tagName?: string;
 	properties?: Record<string, unknown>;
 	children?: HastNode[];
+	/** Texto de un nodo de tipo "text". */
+	value?: string;
+}
+
+/**
+ * Devuelve los hijos que son elementos (type === "element").
+ */
+function elementsOf(node: HastNode): HastNode[] {
+	return (node.children ?? []).filter((c) => c.type === "element");
+}
+
+/**
+ * Extrae el texto plano de un subárbol hast (contenido de un bloque de código),
+ * separando los saltos de línea entre nodos para no perder la estructura.
+ */
+function nodeText(node: HastNode): string {
+	if (node.type === "text") return String(node.value ?? "");
+	if (!node.children) return "";
+	return node.children.map(nodeText).join("");
+}
+
+/**
+ * Plugin de rehype que detecta los bloques de código con lenguaje `mermaid`
+ * o `dot` (Graphviz) y los convierte en la estructura HTML que el renderizador
+ * de diagramas espera en el cliente.
+ *
+ * Mermaid → <div class="diagram diagram-mermaid"><pre class="mermaid">…</pre></div>
+ *   La clase `pre.mermaid` es el punto de entrada nativo de Mermaid 11.
+ *
+ * DOT     → <div class="diagram diagram-dot" data-diagram-type="dot"><pre
+ *            class="diagram-source dot"><code class="language-dot">…</code></pre></div>
+ *   El código fuente se conserva (con clase diagram-source) para que JavaScript
+ *   lea el DOT, lo convierta a SVG y, en caso de error, quede como respaldo.
+ *
+ * Los bloques de código de cualquier otro lenguaje no se tocan y siguen
+ * mostrándose como código normal.
+ */
+function rehypeDiagrams(): (tree: HastNode) => void {
+	return (tree) => {
+		walk(tree.children);
+	};
+
+	// Recorre el árbol; en cada lista de hijos reemplaza los <pre> que sean
+	// diagramas por su correspondiente <div class="diagram">.
+	function walk(children: HastNode[] | undefined): void {
+		if (!children) return;
+		for (const child of children) {
+			if (child.type === "element") walk(child.children);
+		}
+
+		for (let i = 0; i < children.length; i++) {
+			const pre = children[i];
+			if (pre.type !== "element" || pre.tagName !== "pre") continue;
+			const repl = diagramReplacement(pre);
+			if (repl) children[i] = repl;
+		}
+	}
+}
+
+/**
+ * Devuelve la estructura <div class="diagram"> equivalente a un <pre> de código
+ * que sea un diagrama (mermaid/dot). Devuelve null si no es un diagrama.
+ */
+function diagramReplacement(pre: HastNode): HastNode | null {
+	const codeEl = elementsOf(pre).find(
+		(c) => c.tagName === "code" && hasClass(c, /^language-(mermaid|dot)$/),
+	);
+	if (!codeEl) return null;
+
+	const lang = classNameOf(codeEl).match(/^language-(mermaid|dot)$/)?.[1] as
+		| "mermaid"
+		| "dot"
+		| undefined;
+	if (!lang) return null;
+	const source = nodeText(codeEl).replace(/\n$/, "");
+
+	return buildDiagramNode(lang, source);
+}
+
+interface HastElement extends HastNode {
+	type: "element";
+	tagName: string;
+	properties: Record<string, unknown>;
+}
+
+function classNameOf(node: HastNode): string {
+	const p = (node.properties ?? {}) as Record<string, unknown>;
+	const v = p.className;
+	if (Array.isArray(v)) return v.join(" ");
+	return String(v ?? "");
+}
+
+function hasClass(node: HastNode, re: RegExp): boolean {
+	return re.test(classNameOf(node));
+}
+
+/**
+ * Construye el elemento <div class="diagram ..."> correspondiente.
+ */
+function buildDiagramNode(
+	lang: "mermaid" | "dot",
+	source: string,
+): HastElement {
+	if (lang === "mermaid") {
+		// <pre class="mermaid"> con el código fuente como texto plano.
+		const pre = describeElement("pre", { className: ["mermaid"] });
+		pre.children = [{ type: "text", value: source }];
+		return describeElement("div", { className: ["diagram", "diagram-mermaid"] }, [
+			pre,
+		]);
+	}
+
+	// DOT: conservamos el <pre class="diagram-source"><code> como fuente
+	// (respaldo + entrada para que JS lea el DOT y lo convierta a SVG).
+	const code = describeElement("code", { className: ["language-dot"] });
+	code.children = [{ type: "text", value: source }];
+	const pre = describeElement("pre", { className: ["diagram-source", "dot"] }, [
+		code,
+	]);
+
+	return describeElement(
+		"div",
+		{
+			className: ["diagram", "diagram-dot"],
+			properties: { "data-diagram-type": "dot" },
+		},
+		[pre],
+	);
+}
+
+function describeElement(
+	tagName: string,
+	props: {
+		className?: string[];
+		properties?: Record<string, unknown>;
+	},
+	children: HastNode[] = [],
+): HastElement {
+	return {
+		type: "element",
+		tagName,
+		properties: {
+			...(props.className ? { className: props.className } : {}),
+			...(props.properties ?? {}),
+		},
+		children,
+	};
 }
 
 /**

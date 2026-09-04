@@ -37,4 +37,39 @@ describe("parseMarkdown", () => {
 		expect(doc.html).toContain("<td>1</td>");
 		expect(doc.html).toContain("<td>4</td>");
 	});
+
+	it("convierte ``​`mermaid`` a <div class=\"diagram diagram-mermaid\"><pre class=\"mermaid\">", async () => {
+		const doc = await parseMarkdown("```mermaid\ngraph TD\n  A --> B\n```");
+		expect(doc.html).toContain(
+			'<div class="diagram diagram-mermaid"><pre class="mermaid">graph TD\n  A --> B</pre></div>',
+		);
+	});
+
+	it("convierte ``​`dot`` a <div class=\"diagram diagram-dot\" data-diagram-type=\"dot\"> conservando la fuente", async () => {
+		const doc = await parseMarkdown("```dot\ndigraph G {\n  A -> B;\n}\n```");
+		expect(doc.html).toContain('<div class="diagram diagram-dot" data-diagram-type="dot">');
+		expect(doc.html).toContain('<pre class="diagram-source dot"><code class="language-dot">');
+		expect(doc.html).toContain("digraph G {\n  A -> B;\n}");
+	});
+
+	it("no convierte bloques de código normales (javascript/python)", async () => {
+		const doc = await parseMarkdown(
+			"```javascript\nconst x = 1;\n```\n\n```python\nprint('hola')\n```",
+		);
+		expect(doc.html).toContain('<pre><code class="language-javascript">');
+		expect(doc.html).toContain('<pre><code class="language-python">');
+		expect(doc.html).not.toContain('class="diagram');
+	});
+
+	it("soporta múltiples diagramas y escapa caracteres especiales de la fuente", async () => {
+		const doc = await parseMarkdown(
+			["```mermaid", "sequenceDiagram", "  A->>B: Hola", "```", "", "texto", "", "```dot", 'A -> "C <D> & E";', "```"].join(
+				"\n",
+			),
+		);
+		const dags = doc.html.match(/class="diagram diagram-/g) ?? [];
+		expect(dags.length).toBe(2);
+		// Caracteres especiales se escapan en el HTML de salida.
+		expect(doc.html).toContain("&#x26;");
+	});
 });

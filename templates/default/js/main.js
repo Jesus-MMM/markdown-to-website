@@ -1,6 +1,7 @@
 /* ============================================================
    Modern Docs — main.js
    Theme toggle · Sidebar search · Copy code · Mobile sidebar
+   Diagrams (Mermaid + Graphviz/DOT) — lazy, per-diagram
    ============================================================ */
 (function () {
   "use strict";
@@ -13,6 +14,7 @@
       var next = current === "dark" ? "light" : "dark";
       document.documentElement.setAttribute("data-theme", next);
       try { localStorage.setItem("theme", next); } catch (e) {}
+      if (renderedDiagrams.length) rerenderDiagrams();
     });
   }
 
@@ -119,6 +121,125 @@
     if (target) target.focus();
   });
 
+  /* ============================================================
+     Diagramas — Mermaid y Graphviz (DOT)
+     Renderizado en cliente, bajo demanda:
+       · Solo se cargan librerías si la página tiene diagramas.
+       · Cada diagrama se renderiza de forma independiente.
+       · Un error en un diagrama no rompe el resto de la página.
+       · El código fuente se conserva como respaldo ante fallos.
+
+     El HTML generado por el pipeline tiene la forma:
+       Mermaid: <div class="diagram diagram-mermaid"><pre class="mermaid">…
+       DOT:     <div class="diagram diagram-dot" data-diagram-type="dot">
+                  <pre class="diagram-source dot"><code class="language-dot">…
+     ============================================================ */
+
+  var DIAGRAM_MERMAID_CDN = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  var DIAGRAM_GRAPHVIZ_CDN = "https://cdn.jsdelivr.net/npm/@hpcc-js/wasm-graphviz/+esm";
+
+  // Promesas cacheadas: cada librería se importa una única vez por página.
+  var mermaidModPromise = null;
+  var graphvizModPromise = null;
+
+  // Registro de diagramas encontrados para poder re-renderizarlos al cambiar
+  // de tema sin depender del DOM original (que se sustituye por el SVG).
+  var renderedDiagrams = [];
+
+  function diagramTheme() {
+    return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "default";
+  }
+
+  function ensureMermaid() {
+    if (!mermaidModPromise) {
+      mermaidModPromise = import(DIAGRAM_MERMAID_CDN).then(function (mod) {
+        return mod.default || mod;
+      });
+    }
+    return mermaidModPromise;
+  }
+
+  function ensureGraphviz() {
+    if (!graphvizModPromise) {
+      graphvizModPromise = import(DIAGRAM_GRAPHVIZ_CDN).then(function (mod) {
+        return mod;
+      });
+    }
+    return graphvizModPromise;
+  }
+
+  function showDiagramError(container, type, err) {
+    container.classList.add("has-error");
+    var msgEl = document.createElement("div");
+    msgEl.className = "diagram-error";
+    msgEl.setAttribute("role", "alert");
+    msgEl.textContent = "Error renderizando diagrama " + type +
+      (err && err.message ? ": " + err.message : "");
+    container.appendChild(msgEl);
+  }
+
+  function renderOneMermaid(container, source, index) {
+    return ensureMermaid().then(function (mermaid) {
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        theme: diagramTheme()
+      });
+      var id = "mmd-" + index + "-" + Math.random().toString(36).slice(2);
+      return mermaid.render(id, source).then(function (res) {
+        container.innerHTML = res.svg;
+        container.classList.add("is-rendered");
+      }).catch(function (err) {
+        showDiagramError(container, "Mermaid", err);
+      });
+    }).catch(function (err) {
+      showDiagramError(container, "Mermaid", err);
+    });
+  }
+
+  function renderOneDot(container, source) {
+    return ensureGraphviz().then(function (mod) {
+      return mod.Graphviz.load().then(function (graphviz) {
+        var svg = graphviz.dot(source);
+        container.innerHTML = svg;
+        container.classList.add("is-rendered");
+      }).catch(function (err) {
+        showDiagramError(container, "Graphviz", err);
+      });
+    }).catch(function (err) {
+      showDiagramError(container, "Graphviz", err);
+    });
+  }
+
+  function processDiagrams() {
+    var index = 0;
+    document.querySelectorAll(".diagram.diagram-mermaid pre.mermaid").forEach(function (pre) {
+      var container = pre.parentElement;
+      var source = pre.innerText;
+      renderedDiagrams.push({ container: container, type: "mermaid", source: source });
+      renderOneMermaid(container, source, index++);
+    });
+
+    document.querySelectorAll(".diagram.diagram-dot .diagram-source").forEach(function (pre) {
+      var container = pre.parentElement;
+      var source = pre.innerText;
+      renderedDiagrams.push({ container: container, type: "dot", source: source });
+      renderOneDot(container, source);
+    });
+  }
+
+  function rerenderDiagrams() {
+    var index = 0;
+    renderedDiagrams.forEach(function (d) {
+      d.container.innerHTML = "";
+      d.container.classList.remove("is-rendered", "has-error");
+      if (d.type === "mermaid") renderOneMermaid(d.container, d.source, index++);
+      else renderOneDot(d.container, d.source);
+    });
+  }
+
+  processDiagrams();
+
   /* ---------------- Copy code button ---------------- */
   var COPY_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   var CHECK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -126,6 +247,8 @@
   function addCopyButtons() {
     var pres = document.querySelectorAll(".content pre");
     pres.forEach(function (pre) {
+      // No añadir botón a los diagramas (su <pre> se sustituye por SVG).
+      if (pre.closest(".diagram")) return;
       if (pre.querySelector(".copy-btn")) return;
       var btn = document.createElement("button");
       btn.type = "button";

@@ -36,3 +36,36 @@ Reglas:
 - Un **`index.md`** dentro de cada carpeta define el título de la sección.
 - El **orden** se toma de `order` (si falta, alfabético).
 - El **ítem activo** se resalta con la clase `active`.
+
+## Diagramas
+
+Los bloques de código con lenguaje `mermaid` o `dot` (Graphviz) se convierten
+automáticamente en diagramas y **no** se muestran como código normal.
+
+### Mermaid
+
+Se renderiza en el navegador. La librería se carga desde CDN **solo** si la
+página contiene diagramas Mermaid.
+
+```mermaid
+graph TD
+  A[Inicio] --> B{Tiene cuenta?}
+  B -->|Sí| C[Entrar]
+  B -->|No| D[Registrarse]
+```
+
+### Dot (Graphviz)
+
+Los diagramas `dot` se renderizan también en el navegador mediante WASM
+(la librería se carga solo si hay diagramas DOT) y se sustituyen por SVG.
+
+```dot
+digraph G {
+  rankdir=LR;
+  A -> B -> C;
+}
+```
+
+Los bloques de código de **cualquier otro lenguaje** (por ejemplo `javascript`,
+`python`, `bash`) se muestran como código normal.
+

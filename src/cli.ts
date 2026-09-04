@@ -6,7 +6,7 @@ import { startDev } from "./dev.js";
 import { startStaticServer } from "./serve.js";
 
 const HELP = `
-md2site 0.1.0
+md2site 0.2.0
 
 Generador automático de sitios de documentación estáticos a partir de Markdown.
 
@@ -39,7 +39,7 @@ async function main(argv: string[]): Promise<number> {
 		return 0;
 	}
 	if (args[0] === "-v" || args[0] === "--version") {
-		process.stdout.write("md2site 0.1.0\n");
+		process.stdout.write("md2site 0.2.0\n");
 		return 0;
 	}
 
