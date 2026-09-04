@@ -379,14 +379,75 @@ a:hover { color: var(--brand-hover); text-decoration: underline; }
   text-align: left;
   line-height: 1.5;
 }
-.diagram svg {
-  max-width: 100%;
-  height: auto;
+
+/* Barra de controles (zoom / pan / reset / descarga) */
+.diagram-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.4rem;
+}
+.diagram-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--fg-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.diagram-btn:hover {
+  color: var(--fg);
+  border-color: var(--fg-muted);
+  background: var(--bg-hover);
+}
+
+/* Vista recortada del diagrama: zoom y pan se aplican al canvas interno. */
+.diagram-viewport {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--code-border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  cursor: grab;
+  touch-action: none;
+  max-height: 70vh;
+}
+.diagram-viewport.is-panning {
+  cursor: grabbing;
+}
+.diagram-viewport .diagram-canvas {
+  transform-origin: 0 0;
+}
+.diagram-viewport svg {
   display: block;
-  margin: 0 auto;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
   background: transparent;
   overflow: visible;
 }
+.diagram-hint {
+  position: absolute;
+  bottom: 0.35rem;
+  right: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--fg-muted);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+}
+
 .diagram .diagram-error {
   margin-top: 0.5rem;
   color: #b3261e;
